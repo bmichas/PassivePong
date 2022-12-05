@@ -62,14 +62,14 @@ class Pong:
         if ball.x_vel < 0:
             # Left
             if ball.y >= left_paddle.y and ball.y < left_paddle.y + left_paddle.height:
-                if ball.x - ball.width <= left_paddle.x + left_paddle.width:
+                if ball.x - ball.width <= left_paddle.x:
                     set_vel(left_paddle)
                     self.left_hit_count += 1
 
         else:
             # right
             if ball.y >= right_paddle.y and ball.y < right_paddle.y + right_paddle.height:
-                if ball.x + ball.width >= right_paddle.x - right_paddle.width:
+                if ball.x + ball.width >= right_paddle.x:
                     set_vel(right_paddle)
                     self.right_hit_count += 1
 

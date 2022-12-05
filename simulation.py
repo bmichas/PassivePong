@@ -12,7 +12,7 @@ class Simulation:
         run = True
         while run:
             pygame.time.delay(50)
-            self.clock.tick(1)
+            self.clock.tick(10)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     run = False
