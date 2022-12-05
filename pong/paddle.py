@@ -20,7 +20,7 @@ class Paddle:
     def move(self, up=True):
         if up:
             self.y -= self.VELOCITY
-        elif up ==2:
+        elif up == 2:
             self.y = 0
         else:
             self.y += self.VELOCITY

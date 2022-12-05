@@ -2,7 +2,7 @@ import pygame
 import random
 
 class Ball:
-    MAX_VELOCITY = 50
+    MAX_VELOCITY = 100
     COLOR = WHITE = (255,255,255)
 
     def __init__(self, x, y, width, height) -> None:
