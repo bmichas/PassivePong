@@ -1,5 +1,5 @@
 import pygame
-from pong import Game
+from pong import Pong
 from AI import SimpleAi
 
 
@@ -34,7 +34,6 @@ class Simulation:
                 # UP == True, if UP==2: stay
                 self.enviroment.move_paddle(left=False, up=move)
             else:
-                print(self.enviroment.right_paddle.y, self.enviroment.ball.y)
                 if keys[pygame.K_UP]:
                     self.enviroment.move_paddle(left=False, up=True)
 
@@ -57,13 +56,13 @@ class Simulation:
 
 
 
-epoch = 2
-win_score = 3
+epoch = 1
+win_score = 1
 width, height = 850, 650
 window = pygame.display.set_mode((width, height))
-game = Game(window, width, height)
+env = Pong(window, width, height)
 ai = SimpleAi()
-sim1 = Simulation(game, ai, win_score)
+sim1 = Simulation(env, ai, win_score)
 for _ in range(epoch):
     sim1.run()
 
