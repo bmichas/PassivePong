@@ -1,4 +1,5 @@
 import pygame
+import random
 from pong.paddle import Paddle
 from pong.ball import Ball
 pygame.init()
@@ -15,18 +16,21 @@ class Pong:
     ALMOST_BLACK = (30, 30, 30)
     
 
-    def __init__(self, window, window_width, window_height, ai_left = False, ai_right = False):
+    def __init__(self, window, window_width, window_height, velocity, ai_left = False, ai_right = False):
         self.window = window
         self.window_width = window_width
         self.window_height = window_height
+        self.velocity = velocity
         self.block_size = 50
-        self.left_paddle = Paddle(50, window_height//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
-        self.right_paddle = Paddle(window_width - 50 - PADDLE_WIDTH, window_height//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT)
-        self.ball = Ball(window_width // 2 - BALL_WIDTH // 2, window_height // 2 - BALL_HEIGHT // 2, BALL_WIDTH, BALL_HEIGHT)
+        self.left_paddle = Paddle(50, window_height//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT, velocity)
+        self.right_paddle = Paddle(window_width - 50 - PADDLE_WIDTH, window_height//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT, velocity)
+        self.ball = Ball(window_width // 2 - BALL_WIDTH // 2, window_height // 2 - BALL_HEIGHT // 2, BALL_WIDTH, BALL_HEIGHT, velocity)
         self.left_paddle_position = (self.left_paddle.x, self.left_paddle.y)
         self.right_paddle_position = (self.right_paddle.x, self.right_paddle.y)
         self.ai_left = ai_left
         self.ai_right = ai_right
+        self.action_tree = {}
+        self.next_state_tree = {}
         self.left_score = 0
         self.right_score = 0
         self.left_hit_count = 0
@@ -46,13 +50,13 @@ class Pong:
             ball.x_vel *= -1
             difference_in_y = paddle.y - ball.y
             if difference_in_y == 0:
-                ball.y_vel = -1 * ball.MAX_VELOCITY
+                ball.y_vel = -1 * self.velocity
 
             elif difference_in_y == -50:
                 ball.y_vel = 0
 
             elif difference_in_y == -100:
-                ball.y_vel = ball.MAX_VELOCITY
+                ball.y_vel = self.velocity
 
         # Collision with board
         if ball.y + ball.height >= self.window_height:
@@ -95,7 +99,7 @@ class Pong:
 
 
     def move_left_paddle(self, up=True):
-        if up and self.left_paddle.y - Paddle.VELOCITY < 0:
+        if up and self.left_paddle.y - self.velocity < 0:
             return False
         if not up and self.left_paddle.y + PADDLE_HEIGHT >= self.window_height:
             return False
@@ -108,7 +112,7 @@ class Pong:
         
 
     def move_right_paddle(self, up=True):
-        if up and self.right_paddle.y - Paddle.VELOCITY < 0:
+        if up and self.right_paddle.y - self.velocity < 0:
             return False
         if not up and self.right_paddle.y + PADDLE_HEIGHT  >= self.window_height:
             return False
@@ -138,9 +142,10 @@ class Pong:
         self.move_right_paddle(move)
         self.ball.move()
         self._handle_collision(self.ball, self.left_paddle, self.right_paddle)
-        print('BALL:', self.ball.x, self.ball.y, self.ball.x_vel, self.ball.y_vel)
-        print('LeftPaddle:', self.left_paddle.x, self.left_paddle.y, self.left_hit_count)
-        print('RightPaddle:', self.right_paddle.x, self.right_paddle.y, self.right_hit_count)
+        
+        # print('BALL:', self.ball.x, self.ball.y, self.ball.x_vel, self.ball.y_vel)
+        # print('LeftPaddle:', self.left_paddle.x, self.left_paddle.y, self.left_hit_count)
+        # print('RightPaddle:', self.right_paddle.x, self.right_paddle.y, self.right_hit_count)
         
         # same position handling
         if prev_left_position == self.left_paddle_position or prev_right_position == self.right_paddle_position:
@@ -184,17 +189,125 @@ class Pong:
         left_paddle_positions = self._get_all_paddle_states(self.left_paddle)
         right_paddle_positions = self._get_all_paddle_states(self.right_paddle)
         states = []
-        states_hash = []
+        states_tree = {}
         for ball_position in ball_positions:
             for left_paddle_position in left_paddle_positions:
                 for right_paddle_position in right_paddle_positions:
-                    state = (ball_position, left_paddle_position, right_paddle_position)
+                    state = (ball_position, right_paddle_position, left_paddle_position)
                     states.append(state)
-                    states_hash.append(hash(state))
+                    states_tree[hash(state)] = 0
+        
+        self.states = states
+        self.states_tree = states_tree
+        return states, states_tree
 
-        return states, states_hash
+    
+    def _get_all_ball_action(self, ball_possition):
+        if self.ball.x_vel < 0 and self.ball.y_vel < 0:
+            return 'LEFT_UP'
+        elif self.ball.x_vel < 0 and self.ball.y_vel == 0:
+            return 'LEFT'
+        elif self.ball.x_vel < 0 and self.ball.y_vel > 0:
+            return 'LEFT_DOWN'
+        elif self.ball.x_vel > 0 and self.ball.y_vel < 0:
+            return 'RIGHT_UP'
+        elif self.ball.x_vel > 0 and self.ball.y_vel == 0:
+            return 'RIGHT'
+        elif self.ball.x_vel > 0 and self.ball.y_vel > 0:
+            return 'RIGHT_DOWN'
+            
+
+    def _get_all_paddle_action(self, paddle):
+        possible_paddle_action = ['STAY']
+        if paddle[1] >= 0 and paddle[1] != self.window_height - self.right_paddle.height:
+            possible_paddle_action.append('DOWN')
+
+        if paddle[1] <= self.window_height - self.right_paddle.height and paddle[1] != 0:
+            possible_paddle_action.append('UP')
+            
+        return possible_paddle_action 
+
+    
+    def get_possible_actions(self, state):
+        """
+            state = [(ball position), (right paddle), (left paddle)]
+            possible ball movement:
+                LEFT UP: x_vel < 0 and y_vel < 0
+                LEFT : x_vel < 0 and y_vel == 0
+                LEFT DOWN : x_vel < 0 and y_vel > 0
+                RIGHT UP : x_vel > 0 and y_vel < 0
+                RIGHT : x_vel > 0 and y_vel == 0
+                RIGHT DOWN : x_vel > 0 and y_vel > 0
+            possible right paddle movement:
+                UP: Y.position > 0
+                STAY: can always stay
+                DOWN: Y.position < window.height
+                                                    """
+        
+        ball_position = state[0]
+        right_paddle_position = state[1]
+        ball_movement = self._get_all_ball_action(ball_position)
+        possible_right_paddle_movement = self._get_all_paddle_action(right_paddle_position)
+        possible_action = []
+        for right_paddle_movement in possible_right_paddle_movement:
+            move = (ball_movement, right_paddle_movement)
+            print(move)
+            if not(hash(move) in self.action_tree): 
+                self.action_tree[hash(move)] = 0
+
+            possible_action.append(move)
+
+        self.states_tree[hash(state)] = self.action_tree
+        return possible_action
        
 
+    def get_next_states(self, state, action):
+        ball_action_dic = {
+            'LEFT_UP': (self.ball.x_vel, self.ball.y_vel),
+            'LEFT': (self.ball.x_vel, 0),
+            'LEFT_DOWN': (self.ball.x_vel, self.ball.y_vel),
+            'RIGHT_UP': (self.ball.x_vel, self.ball.y_vel),
+            'RIGHT': (self.ball.x_vel, 0),
+            'RIGHT_DOWN':(self.ball.x_vel, self.ball.y_vel)
+        }
+        paddle_action_dic = {
+            'UP': (0, self.right_paddle.velocity),
+            'STAY': (0, 0),
+            'DOWN': (0, -self.right_paddle.velocity)        
+        }
+        
+        # Position of objects
+        ball_state = state[0]
+        right_paddle_state = state[1]
+        left_paddle_state = state[2]
+        
+        # Action of objects
+        ball_action = action[0]
+        right_paddle_action = action[1]
+        
+        ball_move = ball_action_dic[ball_action]
+        right_paddle_move = paddle_action_dic[right_paddle_action]
+        
+        next_ball_state = (ball_state[0] + ball_move[0], ball_state[0] + ball_move[0])
+        next_right_paddle_state = (right_paddle_state[0] + right_paddle_move[0], right_paddle_state[1] + right_paddle_move[1])
+
+        possible_left_paddle_movement = self._get_all_paddle_action(left_paddle_state)
+        possible_next_states = []
+        for left_paddle_action in possible_left_paddle_movement:
+            left_paddle_move = paddle_action_dic[left_paddle_action]
+            next_left_paddle_state = (left_paddle_state[0] + left_paddle_move[0], left_paddle_state[1] + left_paddle_move[1])
+            possible_next_state = (next_ball_state, next_right_paddle_state, next_left_paddle_state)
+            if not(hash(possible_next_state) in self.next_state_tree): 
+                self.next_state_tree[hash(possible_next_state)] = random.random()
+
+            possible_next_states.append(possible_next_state)
+            # HERE YOU ENDED YOU NEED TO IMPLEMENT ADDING POSSIBLE NEXT STATE TO TREE_STATE. TREE_ACTION
+        
+        
+        
+
+    def get_current_state(self):
+        return ((self.ball.x, self.ball.y), (self.right_paddle.x, self.right_paddle.y), (self.left_paddle.x, self.left_paddle.y))
 
 
     def reset(self):

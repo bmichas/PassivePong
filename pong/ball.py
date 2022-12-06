@@ -2,15 +2,14 @@ import pygame
 import random
 
 class Ball:
-    MAX_VELOCITY = 50
     COLOR = WHITE = (255,255,255)
 
-    def __init__(self, x, y, width, height) -> None:
+    def __init__(self, x, y, width, height, velocity) -> None:
         self.x = self.original_x = x
         self.y = self.original_y = y
         self.width = width
         self.height = height
-        self.x_vel = self.MAX_VELOCITY
+        self.x_vel = velocity
         self.y_vel = 0
 
     
