@@ -251,9 +251,8 @@ class Pong:
         possible_action = []
         for right_paddle_movement in possible_right_paddle_movement:
             move = (ball_movement, right_paddle_movement)
-            print(move)
-            if not(hash(move) in self.action_tree): 
-                self.action_tree[hash(move)] = 0
+            if not(move in self.action_tree): 
+                self.action_tree[move] = 0
 
             possible_action.append(move)
 
@@ -292,16 +291,16 @@ class Pong:
         next_right_paddle_state = (right_paddle_state[0] + right_paddle_move[0], right_paddle_state[1] + right_paddle_move[1])
 
         possible_left_paddle_movement = self._get_all_paddle_action(left_paddle_state)
-        possible_next_states = []
+        possible_next_states = {}
         for left_paddle_action in possible_left_paddle_movement:
             left_paddle_move = paddle_action_dic[left_paddle_action]
             next_left_paddle_state = (left_paddle_state[0] + left_paddle_move[0], left_paddle_state[1] + left_paddle_move[1])
             possible_next_state = (next_ball_state, next_right_paddle_state, next_left_paddle_state)
-            if not(hash(possible_next_state) in self.next_state_tree): 
-                self.next_state_tree[hash(possible_next_state)] = random.random()
+            possible_next_states[hash(possible_next_state)] = random.random()
 
-            possible_next_states.append(possible_next_state)
-            # HERE YOU ENDED YOU NEED TO IMPLEMENT ADDING POSSIBLE NEXT STATE TO TREE_STATE. TREE_ACTION
+        # print("State: " + str(state) + " action: " + str(action) + " " + "list of possible next states: ", possible_next_states)
+
+        
         
         
         
