@@ -18,16 +18,13 @@ class Simulation:
                 if event.type == pygame.QUIT:
                     run = False
                     break
-
-            # print("=====================")        
+     
             current_state = self.enviroment.get_current_state()
             actions = self.enviroment.get_possible_actions(current_state)
             for action in actions:
-                # print(current_state)
-                # print(action)
-                self.enviroment.get_next_states(current_state, action)
+                next_states = self.enviroment.get_next_states(current_state, action)
+                print("State: " + str(current_state) + " action: " + str(action) + " " + "list of possible next states: ", str(next_states))
 
-            # print("=====================")
             self.enviroment.step()
             self.enviroment.draw()
             won = False

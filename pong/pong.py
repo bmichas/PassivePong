@@ -58,7 +58,7 @@ class Pong:
             elif difference_in_y == -100:
                 ball.y_vel = self.velocity
 
-        # Collision with board
+        # Collision with ball and board
         if ball.y + ball.height >= self.window_height:
             ball.y_vel *= -1
         elif ball.y <= 0:
@@ -203,21 +203,6 @@ class Pong:
         self.reverse_hash_states = reverse_hash_states
         self.policy = states_tree
         return states, states_tree
-
-    
-    def _get_all_ball_action(self, ball_possition):
-        if self.ball.x_vel < 0 and self.ball.y_vel < 0:
-            return 'LEFT_UP'
-        elif self.ball.x_vel < 0 and self.ball.y_vel == 0:
-            return 'LEFT'
-        elif self.ball.x_vel < 0 and self.ball.y_vel > 0:
-            return 'LEFT_DOWN'
-        elif self.ball.x_vel > 0 and self.ball.y_vel < 0:
-            return 'RIGHT_UP'
-        elif self.ball.x_vel > 0 and self.ball.y_vel == 0:
-            return 'RIGHT'
-        elif self.ball.x_vel > 0 and self.ball.y_vel > 0:
-            return 'RIGHT_DOWN'
             
 
     def _get_all_paddle_action(self, paddle):
@@ -230,8 +215,17 @@ class Pong:
             
         return possible_paddle_action 
 
+
+    def _get_all_ball_action(self, ball_y):
+        if ball_y == 0:
+            return ['LEFT','LEFT_DOWN', 'RIGHT', 'RIGHT_DOWN']
+        elif ball_y + BALL_HEIGHT == self.window_height :
+            return ['LEFT','LEFT_UP', 'RIGHT', 'RIGHT_UP']
+        else:
+            return ['LEFT','LEFT_DOWN', 'LEFT_UP', 'RIGHT', 'RIGHT_DOWN', 'RIGHT_UP']
+        
     
-    def get_possible_actions(self, state):
+    def _gen_possible_actions(self, state):
         """
             state = [(ball position), (right paddle), (left paddle)]
             possible ball movement:
@@ -249,17 +243,19 @@ class Pong:
         
         ball_position = state[0]
         right_paddle_position = state[1]
-        ball_movement = self._get_all_ball_action(ball_position)
+
+        ball_movements = self._get_all_ball_action(ball_position[1])
         possible_right_paddle_movement = self._get_all_paddle_action(right_paddle_position)
         possible_action = []
         for right_paddle_movement in possible_right_paddle_movement:
-            move = (ball_movement, right_paddle_movement)
-            possible_action.append(move)
+            for ball_movement in ball_movements:
+                move = (ball_movement, right_paddle_movement)
+                possible_action.append(move)
 
         return possible_action
        
 
-    def get_next_states(self, state, action):
+    def _gen_next_states(self, state, action):
         ball_action_dic = {
             'LEFT_UP': (self.ball.x_vel, self.ball.y_vel),
             'LEFT': (self.ball.x_vel, 0),
@@ -295,29 +291,33 @@ class Pong:
             left_paddle_move = paddle_action_dic[left_paddle_action]
             next_left_paddle_state = (left_paddle_state[0] + left_paddle_move[0], left_paddle_state[1] + left_paddle_move[1])
             possible_next_state = (next_ball_state, next_right_paddle_state, next_left_paddle_state)
-            possible_next_states[hash(possible_next_state)] = random.random()
+            possible_next_states[hash(possible_next_state)] = 1/len(possible_left_paddle_movement)
 
-        # print("State: " + str(state) + " action: " + str(action) + " " + "list of possible next states: ", possible_next_states)
         return possible_next_states
-
-        
 
         
     def get_policy(self, states):
         for state in states:
-            actions = self.get_possible_actions(state)
+            actions = self._gen_possible_actions(state)
             possible_actions = {}
             for action in actions:
                 possible_actions[action] = 0
             self.policy[hash(state)] = possible_actions
 
             for action in actions:
-                possible_next_states = self.get_next_states(state, action)
+                possible_next_states = self._gen_next_states(state, action)
                 self.policy[hash(state)][action] = possible_next_states
 
         return self.policy
                 
-        
+    
+    def get_possible_actions(self, state):
+        return tuple(self.policy.get(hash(state), {}).keys())
+
+
+    def get_next_states(self, state, action):
+        return self.policy[hash(state)][action]
+
 
     def get_current_state(self):
         return ((self.ball.x, self.ball.y), (self.right_paddle.x, self.right_paddle.y), (self.left_paddle.x, self.left_paddle.y))
