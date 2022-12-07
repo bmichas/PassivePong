@@ -16,11 +16,12 @@ class Pong:
     ALMOST_BLACK = (30, 30, 30)
     
 
-    def __init__(self, window, window_width, window_height, velocity, ai_left = False, ai_right = False):
+    def __init__(self, window, window_width, window_height, velocity, win_score, ai_left = False, ai_right = False):
         self.window = window
         self.window_width = window_width
         self.window_height = window_height
         self.velocity = velocity
+        self.win_score = win_score
         self.block_size = 50
         self.left_paddle = Paddle(50, window_height//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT, velocity)
         self.right_paddle = Paddle(window_width - 50 - PADDLE_WIDTH, window_height//2 - PADDLE_HEIGHT//2, PADDLE_WIDTH, PADDLE_HEIGHT, velocity)
@@ -32,8 +33,11 @@ class Pong:
         self.action_tree = {}
         self.next_state_tree = {}
         self.left_score = 0
+        self.left_score_prev = 0
         self.right_score = 0
+        self.right_score_prev = 0
         self.left_hit_count = 0
+        self.left_hit_count_prev = 0
         self.right_hit_count = 0
         self.counter = 0
 
@@ -70,6 +74,7 @@ class Pong:
             if ball.y >= left_paddle.y and ball.y < left_paddle.y + left_paddle.height:
                 if ball.x - ball.width <= left_paddle.x:
                     set_vel(left_paddle)
+                    self.left_hit_count_prev = self.left_hit_count
                     self.left_hit_count += 1
 
         else:
@@ -159,9 +164,11 @@ class Pong:
         
         if self.ball.x < 0:
             self.ball.reset()
+            self.right_score_prev = self.right_score
             self.right_score += 1
         elif self.ball.x > self.window_width:
             self.ball.reset()
+            self.left_score_prev = self.left_score
             self.left_score += 1
             
     
@@ -322,6 +329,20 @@ class Pong:
     def get_current_state(self):
         return ((self.ball.x, self.ball.y), (self.right_paddle.x, self.right_paddle.y), (self.left_paddle.x, self.left_paddle.y))
 
+    def get_reward(self):
+        if self.left_hit_count_prev < self.left_hit_count:
+            self.left_hit_count_prev = self.left_hit_count
+            return 1
+        elif self.right_score_prev < self.right_score:
+            self.right_score_prev = self.right_score
+            return -1
+        elif self.left_score_prev < self.left_score:
+            if self.left_score == self.win_score:
+                return 5
+            self.left_score_prev = self.left_score
+            return 2
+        else:
+            return 0
 
     def reset(self):
         self.ball.reset()
