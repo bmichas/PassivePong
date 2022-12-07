@@ -12,6 +12,7 @@ class SimpleAi:
             else:
                 return True
 
+
     def flag(self, flag = True):
         return flag
 

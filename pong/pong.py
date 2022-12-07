@@ -16,7 +16,7 @@ class Pong:
     ALMOST_BLACK = (30, 30, 30)
     
 
-    def __init__(self, window, window_width, window_height, velocity, win_score, ai_left = False, ai_right = False):
+    def __init__(self, window, window_width, window_height, velocity, win_score):
         self.window = window
         self.window_width = window_width
         self.window_height = window_height
@@ -28,8 +28,6 @@ class Pong:
         self.ball = Ball(window_width // 2 - BALL_WIDTH // 2, window_height // 2 - BALL_HEIGHT // 2, BALL_WIDTH, BALL_HEIGHT, velocity)
         self.left_paddle_position = (self.left_paddle.x, self.left_paddle.y)
         self.right_paddle_position = (self.right_paddle.x, self.right_paddle.y)
-        self.ai_left = ai_left
-        self.ai_right = ai_right
         self.action_tree = {}
         self.next_state_tree = {}
         self.left_score = 0
@@ -41,12 +39,17 @@ class Pong:
         self.right_hit_count = 0
         self.counter = 0
 
-    
+    def set_left_ai(self, ai):
+        self.ai_left = ai
+
+    def set_right_ai(self, ai):
+        self.ai_right = ai
+
     def _draw_score(self):
         left_score_text = self.SCORE_FONT.render(f"{self.left_score}", 1, self.WHITE)
         right_score_text = self.SCORE_FONT.render(f"{self.right_score}", 1, self.WHITE)
-        self.window.blit(left_score_text, (200 + 6, 50))
-        self.window.blit(right_score_text, (500 + 6, 50))
+        self.window.blit(left_score_text, (self.window_width // 2 - 50, 50))
+        self.window.blit(right_score_text, (self.window_width // 2 + 25, 50))
 
 
     def _handle_collision(self, ball, left_paddle, right_paddle):
@@ -65,6 +68,7 @@ class Pong:
         # Collision with ball and board
         if ball.y + ball.height >= self.window_height:
             ball.y_vel *= -1
+        
         elif ball.y <= 0:
             ball.y_vel *= -1
 
@@ -106,6 +110,7 @@ class Pong:
     def move_left_paddle(self, up=True):
         if up and self.left_paddle.y - self.velocity < 0:
             return False
+        
         if not up and self.left_paddle.y + PADDLE_HEIGHT >= self.window_height:
             return False
 
@@ -119,6 +124,7 @@ class Pong:
     def move_right_paddle(self, up=True):
         if up and self.right_paddle.y - self.velocity < 0:
             return False
+        
         if not up and self.right_paddle.y + PADDLE_HEIGHT  >= self.window_height:
             return False
 
@@ -129,10 +135,18 @@ class Pong:
         return True
 
 
-    def step(self):
+    def step(self, ai):
         keys = pygame.key.get_pressed()
-        if self.ai_left:
-            pass
+        
+        # UP == True, if UP==2: stay
+        prev_left_position = self.left_paddle_position
+        prev_right_position = self.right_paddle_position
+        self.ball.move()
+        if self.ai_right:
+            move = self.ai_right.move_paddle(self.right_paddle.y, self.ball.y)
+            # current_state = self.get_current_state()
+            # move = self.ai_right.move_paddle(current_state)
+        
         else:
             if keys[pygame.K_w]:
                 self.move_left_paddle(up=True)
@@ -140,12 +154,19 @@ class Pong:
             if keys[pygame.K_s]:
                 self.move_left_paddle(up=False)
 
-        move = self.ai_right.move_paddle(self.right_paddle.y, self.ball.y)
-        # UP == True, if UP==2: stay
-        prev_left_position = self.left_paddle_position
-        prev_right_position = self.right_paddle_position
         self.move_right_paddle(move)
-        self.ball.move()
+        if ai.ai_flag:
+            current_state = self.get_current_state()
+            move = self.ai_left.move_paddle(current_state)
+        
+        else:
+            if keys[pygame.K_w]:
+                self.move_left_paddle(up=True)
+
+            if keys[pygame.K_s]:
+                self.move_left_paddle(up=False)
+
+        self.move_left_paddle(move)
         self._handle_collision(self.ball, self.left_paddle, self.right_paddle)
         
         # print('BALL:', self.ball.x, self.ball.y, self.ball.x_vel, self.ball.y_vel)
@@ -164,10 +185,15 @@ class Pong:
         
         if self.ball.x < 0:
             self.ball.reset()
+            self.left_paddle.reset()
+            self.right_paddle.reset()
             self.right_score_prev = self.right_score
             self.right_score += 1
+        
         elif self.ball.x > self.window_width:
             self.ball.reset()
+            self.left_paddle.reset()
+            self.right_paddle.reset()
             self.left_score_prev = self.left_score
             self.left_score += 1
             
@@ -208,7 +234,7 @@ class Pong:
         
         self.states = states
         self.reverse_hash_states = reverse_hash_states
-        self.policy = states_tree
+        self.tree = states_tree
         return states, states_tree
             
 
@@ -226,8 +252,10 @@ class Pong:
     def _get_all_ball_action(self, ball_y):
         if ball_y == 0:
             return ['LEFT','LEFT_DOWN', 'RIGHT', 'RIGHT_DOWN']
+        
         elif ball_y + BALL_HEIGHT == self.window_height :
             return ['LEFT','LEFT_UP', 'RIGHT', 'RIGHT_UP']
+        
         else:
             return ['LEFT','LEFT_DOWN', 'LEFT_UP', 'RIGHT', 'RIGHT_DOWN', 'RIGHT_UP']
         
@@ -298,51 +326,87 @@ class Pong:
             left_paddle_move = paddle_action_dic[left_paddle_action]
             next_left_paddle_state = (left_paddle_state[0] + left_paddle_move[0], left_paddle_state[1] + left_paddle_move[1])
             possible_next_state = (next_ball_state, next_right_paddle_state, next_left_paddle_state)
-            possible_next_states[hash(possible_next_state)] = 1/len(possible_left_paddle_movement)
+            # possible_next_states[hash(possible_next_state)] = 1/len(possible_left_paddle_movement)
+            possible_next_states[hash(possible_next_state)] = random.random()
 
         return possible_next_states
 
         
-    def get_policy(self, states):
+    def get_tree(self, states):
+        counter = 0
         for state in states:
             actions = self._gen_possible_actions(state)
             possible_actions = {}
             for action in actions:
                 possible_actions[action] = 0
-            self.policy[hash(state)] = possible_actions
+            self.tree[hash(state)] = possible_actions
 
             for action in actions:
                 possible_next_states = self._gen_next_states(state, action)
-                self.policy[hash(state)][action] = possible_next_states
+                self.tree[hash(state)][action] = possible_next_states
+                counter += 1
+                # print("Counter:" + str(counter) + "State: " + str(state) + " action: " + str(action) + " " + "list of possible next states: ", str(possible_next_states))
 
-        return self.policy
-                
+        print('STATE -> ACTION -> STATE: ', counter)
+        return self.tree
+
+    def get_policy(self, states):
+        policy = dict()
+        for s in states:
+            actions = self.get_possible_actions(s)
+            action_prob = 1 / len(actions)
+            policy[hash(s)] = dict()
+            for a in actions:
+                policy[hash(s)][a] = action_prob
+        
+        return policy
+
     
     def get_possible_actions(self, state):
-        return tuple(self.policy.get(hash(state), {}).keys())
+        return tuple(self.tree.get(hash(state), {}).keys())
 
 
     def get_next_states(self, state, action):
-        return self.policy[hash(state)][action]
+        return self.tree[hash(state)][action]
 
 
     def get_current_state(self):
         return ((self.ball.x, self.ball.y), (self.right_paddle.x, self.right_paddle.y), (self.left_paddle.x, self.left_paddle.y))
 
-    def get_reward(self):
-        if self.left_hit_count_prev < self.left_hit_count:
-            self.left_hit_count_prev = self.left_hit_count
-            return 1
-        elif self.right_score_prev < self.right_score:
-            self.right_score_prev = self.right_score
+
+    def get_reward(self, state):
+        state = self.reverse_hash_states[state]
+        ball_x = state[0][0]
+        ball_y = state[0][1]
+        left_paddle_x = state[2][0]
+        left_paddle_y = state[2][1]
+
+        if ball_y >= left_paddle_y and ball_y  < left_paddle_y + self.left_paddle.height:
+                if ball_x - self.ball.width <= left_paddle_x:
+                    return 2
+        elif ball_x == 0:
             return -1
-        elif self.left_score_prev < self.left_score:
-            if self.left_score == self.win_score:
-                return 5
-            self.left_score_prev = self.left_score
-            return 2
-        else:
-            return 0
+        elif ball_x == self.window_width:
+            return 3
+
+        return 0
+
+
+    """REWARD DURING PLAYING"""
+    # def get_reward(self):
+    #     if self.left_hit_count_prev < self.left_hit_count:
+    #         self.left_hit_count_prev = self.left_hit_count
+    #         return 1
+    #     elif self.right_score_prev < self.right_score:
+    #         self.right_score_prev = self.right_score
+    #         return -1
+    #     elif self.left_score_prev < self.left_score:
+    #         if self.left_score == self.win_score:
+    #             return 5
+    #         self.left_score_prev = self.left_score
+    #         return 2
+    #     else:
+    #         return 0
 
     def reset(self):
         self.ball.reset()
