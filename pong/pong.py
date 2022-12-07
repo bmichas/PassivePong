@@ -189,16 +189,19 @@ class Pong:
         left_paddle_positions = self._get_all_paddle_states(self.left_paddle)
         right_paddle_positions = self._get_all_paddle_states(self.right_paddle)
         states = []
+        reverse_hash_states = {}
         states_tree = {}
         for ball_position in ball_positions:
             for left_paddle_position in left_paddle_positions:
                 for right_paddle_position in right_paddle_positions:
                     state = (ball_position, right_paddle_position, left_paddle_position)
-                    states.append(state)
+                    reverse_hash_states[hash(state)] = state
                     states_tree[hash(state)] = 0
+                    states.append(state)
         
         self.states = states
-        self.states_tree = states_tree
+        self.reverse_hash_states = reverse_hash_states
+        self.policy = states_tree
         return states, states_tree
 
     
@@ -251,12 +254,8 @@ class Pong:
         possible_action = []
         for right_paddle_movement in possible_right_paddle_movement:
             move = (ball_movement, right_paddle_movement)
-            if not(move in self.action_tree): 
-                self.action_tree[move] = 0
-
             possible_action.append(move)
 
-        self.states_tree[hash(state)] = self.action_tree
         return possible_action
        
 
@@ -299,10 +298,25 @@ class Pong:
             possible_next_states[hash(possible_next_state)] = random.random()
 
         # print("State: " + str(state) + " action: " + str(action) + " " + "list of possible next states: ", possible_next_states)
+        return possible_next_states
 
         
+
         
-        
+    def get_policy(self, states):
+        for state in states:
+            actions = self.get_possible_actions(state)
+            possible_actions = {}
+            for action in actions:
+                possible_actions[action] = 0
+            self.policy[hash(state)] = possible_actions
+
+            for action in actions:
+                possible_next_states = self.get_next_states(state, action)
+                self.policy[hash(state)][action] = possible_next_states
+
+        return self.policy
+                
         
 
     def get_current_state(self):
