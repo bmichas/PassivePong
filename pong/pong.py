@@ -28,6 +28,8 @@ class Pong:
         self.ball = Ball(window_width // 2 - BALL_WIDTH // 2, window_height // 2 - BALL_HEIGHT // 2, BALL_WIDTH, BALL_HEIGHT, velocity)
         self.left_paddle_position = (self.left_paddle.x, self.left_paddle.y)
         self.right_paddle_position = (self.right_paddle.x, self.right_paddle.y)
+        self.ai_left_flag = False
+        self.ai_right_flag = False
         self.action_tree = {}
         self.next_state_tree = {}
         self.left_score = 0
@@ -40,9 +42,11 @@ class Pong:
         self.counter = 0
 
     def set_left_ai(self, ai):
+        self.ai_left_flag = True
         self.ai_left = ai
 
     def set_right_ai(self, ai):
+        self.ai_right_flag = True
         self.ai_right = ai
 
     def _draw_score(self):
@@ -135,17 +139,16 @@ class Pong:
         return True
 
 
-    def step(self, ai):
+    def step(self):
         keys = pygame.key.get_pressed()
         
         # UP == True, if UP==2: stay
         prev_left_position = self.left_paddle_position
         prev_right_position = self.right_paddle_position
         self.ball.move()
-        if self.ai_right:
-            move = self.ai_right.move_paddle(self.right_paddle.y, self.ball.y)
-            # current_state = self.get_current_state()
-            # move = self.ai_right.move_paddle(current_state)
+        if self.ai_right_flag:
+            current_state = self.get_current_state()
+            move = self.ai_right.move_paddle(current_state, False)
         
         else:
             if keys[pygame.K_w]:
@@ -153,11 +156,11 @@ class Pong:
 
             if keys[pygame.K_s]:
                 self.move_left_paddle(up=False)
-
+        
         self.move_right_paddle(move)
-        if ai.ai_flag:
+        if self.ai_left_flag:
             current_state = self.get_current_state()
-            move = self.ai_left.move_paddle(current_state)
+            move = self.ai_left.move_paddle(current_state, False)
         
         else:
             if keys[pygame.K_w]:
@@ -327,6 +330,7 @@ class Pong:
             next_left_paddle_state = (left_paddle_state[0] + left_paddle_move[0], left_paddle_state[1] + left_paddle_move[1])
             possible_next_state = (next_ball_state, next_right_paddle_state, next_left_paddle_state)
             # possible_next_states[hash(possible_next_state)] = 1/len(possible_left_paddle_movement)
+            # possible_next_states[hash(possible_next_state)] = 0
             possible_next_states[hash(possible_next_state)] = random.random()
 
         return possible_next_states

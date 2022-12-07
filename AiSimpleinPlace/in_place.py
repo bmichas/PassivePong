@@ -51,7 +51,7 @@ class InPlace:
         self.better_policy = policy
         self.V = V
 
-    def move_paddle(self, current_state):
+    def move_paddle(self, current_state, left = True):
         try:
             action = self.better_policy[hash(current_state)][1]
             if action == 'STAY':

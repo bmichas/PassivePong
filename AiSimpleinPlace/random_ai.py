@@ -4,7 +4,7 @@ class RandomAi:
         pass
 
 
-    def move_paddle(self, paddle_y, ball_y):
+    def move_paddle(self, current_state, left = True):
         lst = [True, 2, False]
         return random.choice(lst)
 

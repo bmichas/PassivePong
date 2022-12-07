@@ -1,10 +1,9 @@
 import pygame
 
 class Simulation:
-    def __init__(self, fps ,game, ai, win_score) -> None:
+    def __init__(self, fps ,game, win_score) -> None:
         self.fps = fps
         self.enviroment = game
-        self.ai = ai
         self.win_score = win_score
         self.clock = pygame.time.Clock()
         self.left_win_rate = 0
@@ -29,7 +28,7 @@ class Simulation:
             #     print("State: " + str(current_state) + " action: " + str(action) + " " + "list of possible next states: ", str(next_states))
 
             
-            self.enviroment.step(self.ai)
+            self.enviroment.step()
             # print(self.enviroment.get_reward())
             self.enviroment.draw()
             won = False
