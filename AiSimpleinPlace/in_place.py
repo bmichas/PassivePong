@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 class InPlace:
     def __init__(self, V, enviroment, policy) -> None:
@@ -62,5 +63,6 @@ class InPlace:
                 return False
 
         except KeyError:
-             return 2
+             lst = [True, 2 , False]
+             return random.choice(lst)
         
